@@ -26,6 +26,10 @@ void SetupShader(ogw::GL_Shader* m_pShader);
 void SetupVBO(ogw::GL_VBO* m_pVBO);
 void SetupTexture(ogw::GL_TEX_CV* m_pTexture);
 
+void DrawSprite(ogw::GL_Shader* m_pShader, GLuint shader, ogw::GL_VBO* m_pVBO, GLuint vbo,
+	ogw::GL_TEX_CV* m_pTexture, GLuint id, GLuint sampler, float* atlas,
+	float m_fRatio, float scale[2], float pos[2]);
+
 int main()
 {
 	GLFWwindow* window;
@@ -87,14 +91,27 @@ int main()
 		{ 0.695203f,0.839114f,1.000000f,1.000000f },
 		{ 0.000000f,0.000000f,0.713653f,0.160886f },
 		{ 0.602214f,0.397786f,1.000000f,0.558672f },
-		{ 0.602214f,0.628782f,1.000000f,0.789668f }
+		{ 0.602214f,0.628782f,1.000000f,0.789668f },
+		{ 0.000000f,0.321771f,0.400738f,0.482657f },//score[6]
+		{ 0.366052f,0.644280f,0.457565f,0.805166f },//0[7]
+		{ 0.000000f,0.482657f,0.091513f,0.643542f},//1[8]
+		{ 0.091513f,0.482657f,0.183026f,0.643542f},//2
+		{ 0.183026f,0.482657f,0.274539f,0.643542f},
+		{ 0.274539f,0.482657f,0.366052f,0.643542f},
+		{ 0.366052f,0.482657f,0.457565f,0.643542f},
+		{ 0.000000f,0.644280f,0.091513f,0.805166f},
+		{ 0.091513f,0.644280f,0.183026f,0.805166f},
+		{ 0.183026f,0.644280f,0.274539f,0.805166f},
+		{ 0.274539f,0.644280f,0.366052f,0.805166f},
+		
 	};
 
-	int num = 0;
+
 	boost::timer::cpu_timer timer;
 	int fps = static_cast<int>(1.0 / 60.0 * 1000000000.0);
 
 	int time_count = 0;
+	int score = 0;
 
 	/* Loop until the user closes the window */
 	do
@@ -119,40 +136,22 @@ int main()
 			glDisableVertexAttribArray(m_pShader->pIDs[shader]->Attribute[0]);
 		}
 
-		unsigned int shader_id = 1;
-		vbo = 1;
-		{
-			glUseProgram(m_pShader->pIDs[shader_id]->id);
-			glUniform1f(m_pShader->pIDs[shader_id]->UniformVS[0], m_fRatio);
-
-			glActiveTexture(GL_TEXTURE0);
-			glUniform1i(m_pShader->pIDs[shader_id]->UniformFS[0], 0);
-
-			glBindTexture(GL_TEXTURE_2D, m_pTexture->ID[0]->id);
-			glBindSampler(0, sampler);
-
-			glEnableVertexAttribArray(m_pShader->pIDs[shader_id]->Attribute[0]);
-			glEnableVertexAttribArray(m_pShader->pIDs[shader_id]->Attribute[1]);
-
-			glBindBuffer(GL_ARRAY_BUFFER, m_pVBO->pVBO[vbo]->id);
-			float* p = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-			float texcoord[8] = { atlas[num][0],atlas[num][1],atlas[num][0],atlas[num][3],atlas[num][2],atlas[num][1],atlas[num][2],atlas[num][3] };
-			memcpy(p + 8, texcoord, sizeof(GLfloat) * 8);
-			glUnmapBuffer(GL_ARRAY_BUFFER);
-
-			float scale[2] = { atlas[num][2] - atlas[num][0] , atlas[num][3] - atlas[num][1] };
-			glUniform1fv(m_pShader->pIDs[shader_id]->UniformVS[1], 2, scale);
-
-			glVertexAttribPointer(m_pShader->pIDs[shader_id]->Attribute[0], 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
-			glVertexAttribPointer(m_pShader->pIDs[shader_id]->Attribute[1], 2, GL_FLOAT, GL_FALSE, 0, (void*)(sizeof(float) * 2 * m_pVBO->pVBO[vbo]->vertexCount));
-			glDrawArrays(GL_TRIANGLE_STRIP, 0, m_pVBO->pVBO[vbo]->vertexCount);
-
-			glDisableVertexAttribArray(m_pShader->pIDs[shader_id]->Attribute[1]);
-			glDisableVertexAttribArray(m_pShader->pIDs[shader_id]->Attribute[0]);
+	
+		//スコア表示
+		float scale[2] = { 0.6f, 0.6f };
+		float pos[2] = { -1.5f, 0.85f };
+		DrawSprite(m_pShader, 1, m_pVBO, 1, m_pTexture, 0, sampler, atlas[6], m_fRatio, scale, pos);
+		
+		//スコア数値表示
+		float num;
+		(score) ? modf(log10(static_cast<float>(score)), &num) : modf(static_cast<float>(log10(1.0)), &num);
+		for (int i = 0; i < static_cast<int>(num)+1; i++) {
+			float pos1[2] = { -1.1f + ((num - (float)i) * 0.1f), 0.85f };
+			int score_ = static_cast<int>(static_cast<double>(score) / pow(10.0, static_cast<double>(i)));
+			DrawSprite(m_pShader, 1, m_pVBO, 1, m_pTexture, 0, sampler, atlas[7 + (score_ % 10)], m_fRatio, scale, pos1);
 		}
 
-		if (time_count == 59) num++, num = num % 6;
-
+		score++;
 		time_count++;
 		time_count = time_count % 60;
 
@@ -162,7 +161,7 @@ int main()
 		/* Poll for and process events */
 		glfwPollEvents();
 
-		cout << "TIME : " << (double)timer.elapsed().wall / (double)1000000 << endl;
+		//cout << "TIME : " << (double)timer.elapsed().wall / (double)1000000 << endl;
 		while (timer.elapsed().wall < fps);
 		timer.stop();
 		cout << "TIME : " << (double)timer.elapsed().wall / (double)1000000 << endl;
@@ -210,9 +209,10 @@ void SetupShader(ogw::GL_Shader* m_pShader)
 		"in vec2 texCoord;"
 		"uniform float ratio;"
 		"uniform float scale[2];"
+		"uniform float pos[2];"
 		"out vec2 texUV;"
 		"void main(){"
-		"gl_Position.xyz = vec3(posXY.x * scale[0], posXY.y* scale[1], 0.0);"
+		"gl_Position.xyz = vec3(posXY.x * scale[0] + pos[0], posXY.y* scale[1] + pos[1], 0.0);"
 		"gl_Position.x = gl_Position.x / ratio;"
 		"gl_Position.w = 1.0;"
 		"texUV = texCoord;"
@@ -227,7 +227,7 @@ void SetupShader(ogw::GL_Shader* m_pShader)
 		"}"
 	};
 	srcData->Attribute = { "posXY", "texCoord" };
-	srcData->UniformVS = { "ratio", "scale" };
+	srcData->UniformVS = { "ratio", "scale", "pos" };
 	srcData->UniformFS = { "texID" };
 
 	m_pShader->Add(srcData);
@@ -246,4 +246,40 @@ void SetupTexture(ogw::GL_TEX_CV* m_pTexture)
 {
 	m_pTexture->Add("src/testData.png");
 
+}
+
+void DrawSprite(ogw::GL_Shader* m_pShader, GLuint shader, ogw::GL_VBO* m_pVBO, GLuint vbo,
+	ogw::GL_TEX_CV* m_pTexture, GLuint id, GLuint sampler, float* atlas,
+	float m_fRatio, float scale[2], float pos[2])
+{
+	
+	glUseProgram(m_pShader->pIDs[shader]->id);
+	glUniform1f(m_pShader->pIDs[shader]->UniformVS[0], m_fRatio);
+
+	glActiveTexture(GL_TEXTURE0);
+	glUniform1i(m_pShader->pIDs[shader]->UniformFS[0], 0);
+
+	glBindTexture(GL_TEXTURE_2D, m_pTexture->ID[0]->id);
+	glBindSampler(0, sampler);
+
+	glEnableVertexAttribArray(m_pShader->pIDs[shader]->Attribute[0]);
+	glEnableVertexAttribArray(m_pShader->pIDs[shader]->Attribute[1]);
+
+	glBindBuffer(GL_ARRAY_BUFFER, m_pVBO->pVBO[vbo]->id);
+	float* p = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+	float texcoord[8] = { atlas[0],atlas[1],atlas[0],atlas[3],atlas[2],atlas[1],atlas[2],atlas[3] };
+	memcpy(p + 8, texcoord, sizeof(GLfloat) * 8);
+	glUnmapBuffer(GL_ARRAY_BUFFER);
+
+	float _scale[2] = { (atlas[2] - atlas[0]) * scale[0] , (atlas[3] - atlas[1]) * scale[1] };
+	glUniform1fv(m_pShader->pIDs[shader]->UniformVS[1], 2, _scale);
+	glUniform1fv(m_pShader->pIDs[shader]->UniformVS[2], 2, pos);
+
+	glVertexAttribPointer(m_pShader->pIDs[shader]->Attribute[0], 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
+	glVertexAttribPointer(m_pShader->pIDs[shader]->Attribute[1], 2, GL_FLOAT, GL_FALSE, 0, (void*)(sizeof(float) * 2 * m_pVBO->pVBO[vbo]->vertexCount));
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, m_pVBO->pVBO[vbo]->vertexCount);
+
+	glDisableVertexAttribArray(m_pShader->pIDs[shader]->Attribute[1]);
+	glDisableVertexAttribArray(m_pShader->pIDs[shader]->Attribute[0]);
+	
 }
